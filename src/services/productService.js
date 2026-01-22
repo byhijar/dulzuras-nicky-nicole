@@ -31,6 +31,7 @@ export const getProducts = async ({ category } = {}) => {
         }
 
         const snapshot = await getDocs(q);
+        console.log(`📦 Firestore loaded ${snapshot.size} items for category: ${category || 'all'}`);
         return snapshot.docs.map(normalizeProduct);
     } catch (error) {
         console.error("Error fetching products:", error);

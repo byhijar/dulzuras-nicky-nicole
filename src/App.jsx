@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import ProductCard from "./components/ProductCard";
-import Carrusel from "./components/Carrusel";
+import Hero from "./components/Hero";
+import HomeAbout from "./components/HomeAbout";
+import Testimonials from "./components/Testimonials";
 import TortaModal from "./components/TortaModal";
 import { getFeaturedProducts } from "./services/productService";
 
@@ -39,32 +41,27 @@ function App() {
 
   return (
     <>
-      <Carrusel />
+      <Hero />
 
-      <main className="pt-10 px-6 text-center">
-        <img
-          src="/logo-nicky-transparent.png"
-          alt="Logo Dulzuras de Nicky Nicole"
-          className="h-32 w-32 object-cover rounded-full border-4 border-purple-300 shadow-lg mx-auto mb-4"
-        />
-        <h1 className="text-4xl font-bold text-purple-700 mb-2">
-          Bienvenidos a Dulzuras de Nicky Nicole
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Tortas personalizadas hechas con amor en Puente Alto 🍓✨
-          <br /> ¡Reserva con anticipación y endulza tus momentos!
-        </p>
-      </main>
-
-      <section className="mt-14 px-4 max-w-6xl mx-auto mb-20">
-        <h2 className="text-2xl font-bold text-center text-purple-700 mb-6">
-          Tortas destacadas 🍰
-        </h2>
+      {/* Featured Products */}
+      <motion.section
+        className="py-16 px-6 max-w-6xl mx-auto"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-purple-800 mb-4">
+            Favoritos del Mes 🍰
+          </h2>
+          <p className="text-gray-600">Lo más pedido por nuestros clientes.</p>
+        </div>
 
         {loading && <div className="text-center text-purple-600 animate-pulse">Cargando destacados...</div>}
 
         {!loading && (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3">
             {(featuredProducts.length > 0 ? featuredProducts : []).map((prod, i) => {
               const typeSingular = getSingularType(prod.category);
 
@@ -95,7 +92,11 @@ function App() {
             )}
           </div>
         )}
-      </section>
+      </motion.section>
+
+      {/* Social Proof & About */}
+      <HomeAbout />
+      <Testimonials />
 
       <TortaModal torta={tortaSeleccionada} onClose={() => setTortaSeleccionada(null)} />
     </>

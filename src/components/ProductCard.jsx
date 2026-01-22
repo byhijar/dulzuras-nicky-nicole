@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 function ProductCard({
     product,
@@ -38,19 +39,34 @@ function ProductCard({
             : "bg-purple-600 hover:bg-purple-700";
 
     return (
-        <div
+        <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 300 }}
             onClick={handleCardClick}
-            className={`bg-white rounded-xl shadow-md hover:shadow-lg transition p-4 flex flex-col justify-between h-full ${onCardClick ? "cursor-pointer" : ""}`}
+            className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow p-4 flex flex-col justify-between h-full ${onCardClick ? "cursor-pointer" : ""}`}
         >
             <div>
-                <img
-                    src={imageUrl || "/assets/default.jpg"}
-                    alt={name}
-                    onError={(e) => {
-                        e.target.src = "/assets/default.jpg";
-                    }}
-                    className="h-48 w-full object-contain md:object-cover rounded mb-4"
-                />
+                <div className={`w-full h-48 rounded-lg mb-4 overflow-hidden relative flex items-center justify-center ${!imageUrl ? 'bg-purple-50' : ''}`}>
+                    {imageUrl ? (
+                        <img
+                            src={imageUrl}
+                            alt={name}
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "/logo-nicky-transparent.png";
+                                e.target.className = "w-full h-full object-contain opacity-50 p-4";
+                                e.target.parentElement.classList.add("bg-purple-50");
+                            }}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <img
+                            src="/logo-nicky-transparent.png"
+                            alt={name}
+                            className="w-full h-full object-contain opacity-50 p-4"
+                        />
+                    )}
+                </div>
 
                 <h3 className="text-xl font-bold text-purple-700 mb-1">{name}</h3>
 
@@ -78,7 +94,7 @@ function ProductCard({
                     {ctaLabel}
                 </Link>
             </div>
-        </div>
+        </motion.div>
     );
 }
 

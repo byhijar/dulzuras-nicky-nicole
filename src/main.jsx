@@ -1,28 +1,39 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import './index.css'
+import App from './App.jsx'
+import Layout from './components/Layout.jsx'
+import Catalogo from './pages/Catalogo.jsx'
+import Contacto from './pages/Contacto.jsx'
+import SobreMi from './pages/SobreMi.jsx'
+import FormularioPedido from './components/FormularioPedido.jsx'
 
-import Layout from './components/Layout';
-import App from './App';
-import Catalogo from './pages/Catalogo';
-import FormularioPedido from './components/FormularioPedido';
+// Admin Views
+import Login from './pages/admin/Login.jsx'
+import RequireAuth from './components/admin/RequireAuth.jsx'
+import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 
-import SobreMi from './pages/SobreMi';
-import Contacto from './pages/Contacto';
-
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout><App /></Layout>} />
-        <Route path="/catalogo" element={<Layout><Catalogo /></Layout>} />
-        <Route path="/catalogo/:categoria" element={<Layout><Catalogo /></Layout>} />
-        <Route path="/formulario" element={<Layout><FormularioPedido /></Layout>} />
-        <Route path="/sobre-mi" element={<Layout><SobreMi /></Layout>} />
-        <Route path="/contacto" element={<Layout><Contacto /></Layout>} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<App />} />
+          <Route path="catalogo/:categoria?" element={<Catalogo />} />
+          <Route path="contacto" element={<Contacto />} />
+          <Route path="sobre-mi" element={<SobreMi />} />
+          <Route path="formulario" element={<FormularioPedido />} />
+        </Route>
+
+        {/* Admin Routes (No Layout or distinct Layout) */}
+        <Route path="/login" element={<Login />} />
+
+        <Route element={<RequireAuth />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Route>
+
       </Routes>
     </BrowserRouter>
-  </React.StrictMode>
-);
+  </StrictMode>,
+)

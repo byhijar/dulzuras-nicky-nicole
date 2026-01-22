@@ -1,6 +1,8 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard";
+import PageHeader from "../components/PageHeader";
 import { getProducts } from "../services/productService";
 
 function Catalogo() {
@@ -26,6 +28,12 @@ function Catalogo() {
     alfajores: "Alfajores y Galletas"
   };
 
+  const categoryImages = {
+    tortas: "/assets/tortas/selva-negra.jpg",
+    vasos: "/assets/vasos/vaso-lucuma.jpg",
+    alfajores: "/assets/logo-nicky.png" // Fallback to logo as alfajores folder is missing
+  };
+
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
@@ -34,8 +42,8 @@ function Catalogo() {
         const data = await getProducts({ category: currentCategory });
         setProducts(data);
       } catch (err) {
-        console.error(err);
-        setError("Error al cargar los productos.");
+        console.error("Error loading catalogue:", err.code, err.message);
+        setError(`Error al cargar los productos: ${err.message}`);
       } finally {
         setLoading(false);
       }
@@ -48,75 +56,92 @@ function Catalogo() {
 
   const filteredProducts = products.filter((p) => {
     if (filtro === "todos") return true;
-    // Use flavorTags for robust filtering
     return p.flavorTags?.includes(filtro);
   });
 
-  if (loading) {
-    return (
-      <div className="mt-32 text-center">
-        <div className="text-xl text-purple-700 font-semibold animate-pulse">Cargando catálogo...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mt-32 text-center px-6">
-        <h2 className="text-2xl font-bold text-red-600 mb-2">¡Ups! Algo salió mal</h2>
-        <p className="text-gray-600 mb-4">Catálogo en actualización. Por favor intenta más tarde.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700"
-        >
-          Reintentar
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <section className="mt-24 px-6 max-w-7xl mx-auto">
-      <h2 className="text-3xl font-bold text-purple-700 text-center mb-6">
-        {categoryLabels[currentCategory]}
-      </h2>
+    <>
+      <PageHeader
+        title={categoryLabels[currentCategory]}
+        subtitle="Elige tu sabor favorito y personalízalo"
+        bgImage={categoryImages[currentCategory]}
+      />
 
-      {/* Filtros de sabor (solo para tortas) */}
-      {currentCategory === "tortas" && (
-        <div className="mb-6 flex flex-wrap gap-3 justify-center">
-          {["todos", "frambuesa", "chocolate", "manjar", "durazno"].map((sabor) => (
-            <button
-              key={sabor}
-              onClick={() => setFiltro(sabor)}
-              className={`px-4 py-1.5 rounded-full border text-sm transition ${filtro === sabor
-                ? "bg-purple-600 text-white border-purple-600"
-                : "bg-white text-purple-700 border-purple-300 hover:bg-purple-50"
-                }`}
-            >
-              {sabor.charAt(0).toUpperCase() + sabor.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Productos */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {filteredProducts.map((producto) => (
-          <ProductCard
-            key={producto.id}
-            product={producto}
-            ctaHref={`/formulario?tipo=${categoria}&producto=${encodeURIComponent(producto.name)}`}
-            ctaLabel={currentCategory === "tortas" ? "Personalizar" : "Encargar"}
-          />
-        ))}
-
-        {filteredProducts.length === 0 && (
-          <div className="col-span-full text-center text-gray-500 py-10">
-            No encontramos productos con esos filtros.
+      <section className="py-12 px-6 max-w-7xl mx-auto min-h-screen">
+        {loading && (
+          <div className="min-h-[50vh] flex items-center justify-center">
+            <div className="text-xl text-purple-700 font-semibold animate-pulse">Cargando catálogo...</div>
           </div>
         )}
-      </div>
-    </section>
+
+        {error && (
+          <div className="min-h-[50vh] flex flex-col items-center justify-center px-6 text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-2">¡Ups! Algo salió mal</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            {/* Filtros de sabor (solo para tortas) */}
+            {currentCategory === "tortas" && (
+              <div className="mb-8 flex flex-wrap gap-3 justify-center">
+                {["todos", "frambuesa", "chocolate", "manjar", "durazno"].map((sabor) => (
+                  <button
+                    key={sabor}
+                    onClick={() => setFiltro(sabor)}
+                    className={`px-4 py-1.5 rounded-full border text-sm transition ${filtro === sabor
+                      ? "bg-purple-600 text-white border-purple-600 shadow-md"
+                      : "bg-white text-purple-700 border-purple-300 hover:bg-purple-50"
+                      }`}
+                  >
+                    {sabor.charAt(0).toUpperCase() + sabor.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Productos Grid with Animation */}
+            <motion.div
+              className="grid md:grid-cols-3 gap-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredProducts.map((producto, i) => (
+                <motion.div
+                  key={producto.id || i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <ProductCard
+                    product={producto}
+                    ctaHref={`/formulario?tipo=${categoria}&producto=${encodeURIComponent(producto.name)}`}
+                    ctaLabel={currentCategory === "tortas" ? "Personalizar" : "Encargar"}
+                  />
+                </motion.div>
+              ))}
+
+              {filteredProducts.length === 0 && (
+                <div className="col-span-full text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                  <p className="text-gray-500 text-lg">No encontramos productos con esos filtros.</p>
+                  <button onClick={() => setFiltro("todos")} className="text-purple-600 font-bold mt-2 hover:underline">
+                    Ver todos
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </section>
+    </>
   );
 }
 

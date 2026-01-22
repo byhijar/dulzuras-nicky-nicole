@@ -3,15 +3,18 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 // Tu configuración real
+// Tu configuración real
 const firebaseConfig = {
-  apiKey: "AIzaSyBUnEGUBUe58HcQZkD2P0UhK9ce-wFCo3w",
-  authDomain: "dulzuras-nicky-nicole.firebaseapp.com",
-  projectId: "dulzuras-nicky-nicole",
-  storageBucket: "dulzuras-nicky-nicole.appspot.com",
-  messagingSenderId: "590960370662",
-  appId: "1:590960370662:web:68e335ef62709e0240ac27",
-  measurementId: "G-E7ZFQFYMKK"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+console.log("🔥 Firebase Config Loaded. ProjectID:", firebaseConfig.projectId || "MISSING");
 
 // Inicializa Firebase
 const app = initializeApp(firebaseConfig);
