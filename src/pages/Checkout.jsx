@@ -12,7 +12,7 @@ import PageTransition from "../components/PageTransition";
 const SERVICE_ID = "service_7qv5o0s";
 const TEMPLATE_ID = "template_e57l7h9";
 const PUBLIC_KEY = "7NppPVTz-0ZFnPS_6";
-const RECAPTCHA_SITE_KEY = "6Le5-yYpAAAAACfY7-VXGiEflUPniW4C1OB_N0cW";
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 function Checkout() {
     const navigate = useNavigate();
