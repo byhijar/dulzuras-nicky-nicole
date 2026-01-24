@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useCart } from "../context/CartContext";
 
 function ProductCard({
     product,
@@ -8,6 +9,8 @@ function ProductCard({
     ctaLabel,
     ctaColor = "purple"
 }) {
+    const { addToCart } = useCart();
+
     const {
         name,
         imageUrl,
@@ -86,13 +89,39 @@ function ProductCard({
                     <p className="text-sm font-semibold text-gray-800">{priceDisplay}</p>
                 )}
 
-                <Link
-                    to={ctaHref}
-                    onClick={handleCtaClick}
-                    className={`mt-4 block text-center py-2 rounded text-white font-semibold transition ${btnColorClass}`}
-                >
-                    {ctaLabel}
-                </Link>
+                {(product.stock !== undefined && product.stock <= 0) ? (
+                    <button
+                        disabled
+                        className="mt-4 block w-full text-center py-2 rounded text-white font-semibold bg-gray-400 cursor-not-allowed"
+                    >
+                        Agotado
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+
+                            // 1. If we have a modal handler, prefer using it (especially for items with options)
+                            if (onCardClick) {
+                                onCardClick(product);
+                                return;
+                            }
+
+                            // 2. Direct Add (Fallback if no modal handler passed)
+                            if (product.sizes) {
+                                // If it needs size but no handler is passed, we can't easily add.
+                                alert("Este producto requiere seleccionar opciones. Por favor visualízalo en el catálogo.");
+                            } else {
+                                // Direct Add for simple products
+                                addToCart(product, 1);
+                                // Optional: Feedback toast? Rely on sidebar opening for now.
+                            }
+                        }}
+                        className={`mt-4 w-full block text-center py-2 rounded text-white font-semibold transition flex items-center justify-center gap-2 ${btnColorClass}`}
+                    >
+                        {ctaLabel || (product.sizes ? "Ver Opciones" : "Agregar")}
+                    </button>
+                )}
             </div>
         </motion.div>
     );

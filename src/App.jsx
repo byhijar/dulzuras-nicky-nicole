@@ -6,6 +6,7 @@ import HomeAbout from "./components/HomeAbout";
 import Testimonials from "./components/Testimonials";
 import TortaModal from "./components/TortaModal";
 import { getFeaturedProducts } from "./services/productService";
+import PageTransition from "./components/PageTransition";
 
 function App() {
   const [tortaSeleccionada, setTortaSeleccionada] = useState(null);
@@ -40,7 +41,7 @@ function App() {
   };
 
   return (
-    <>
+    <PageTransition>
       <Hero />
 
       {/* Featured Products */}
@@ -99,7 +100,7 @@ function App() {
       <Testimonials />
 
       <TortaModal torta={tortaSeleccionada} onClose={() => setTortaSeleccionada(null)} />
-    </>
+    </PageTransition>
   );
 }
 

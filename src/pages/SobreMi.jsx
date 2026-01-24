@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import PageHeader from "../components/PageHeader";
+import PageTransition from "../components/PageTransition";
 
 function SobreMi() {
   return (
-    <>
+    <PageTransition>
       <PageHeader
         title="Sobre Mí"
         subtitle="Conoce la historia detrás de Dulzuras"
@@ -103,7 +104,7 @@ function SobreMi() {
         </motion.div>
 
       </section>
-    </>
+    </PageTransition>
   );
 }
 

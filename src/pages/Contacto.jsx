@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import PageHeader from "../components/PageHeader";
 import { FaWhatsapp, FaInstagram, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
+import PageTransition from "../components/PageTransition";
 
 function Contacto() {
   return (
-    <>
+    <PageTransition>
       <PageHeader
         title="Contáctanos"
         subtitle="Estamos listos para endulzar tu evento"
@@ -70,7 +71,7 @@ function Contacto() {
           </div>
         </motion.div>
       </section>
-    </>
+    </PageTransition>
   );
 }
 

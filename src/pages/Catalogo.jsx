@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard";
 import PageHeader from "../components/PageHeader";
+import PageTransition from "../components/PageTransition";
 import { getProducts } from "../services/productService";
 
 function Catalogo() {
@@ -60,7 +61,7 @@ function Catalogo() {
   });
 
   return (
-    <>
+    <PageTransition>
       <PageHeader
         title={categoryLabels[currentCategory]}
         subtitle="Elige tu sabor favorito y personalízalo"
@@ -141,7 +142,7 @@ function Catalogo() {
           </>
         )}
       </section>
-    </>
+    </PageTransition>
   );
 }
 

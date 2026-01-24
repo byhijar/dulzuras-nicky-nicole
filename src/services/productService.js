@@ -12,7 +12,8 @@ const normalizeProduct = (doc) => {
         // Ensure arrays exist
         flavorTags: data.flavorTags || [],
         sizes: data.sizes || null,
-        price: data.price ?? null
+        price: data.price ?? null,
+        stock: data.stock ?? 0 // Default stock to 0 if missing
     };
 };
 

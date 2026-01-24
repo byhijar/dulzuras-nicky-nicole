@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { getAuth } from "firebase/auth";
+import { createOrder } from "../services/orderService";
 import { tortasPersonalizadas, tortasVaso, alfajoresYGalletas } from "../data/productos";
 import PedidoExitosoModal from "../components/PedidoExitosoModal";
 import emailjs from "@emailjs/browser";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useCart } from "../context/CartContext";
 
 const SERVICE_ID = "service_7qv5o0s";
 const TEMPLATE_ID = "template_e57l7h9";
@@ -15,8 +16,13 @@ const RECAPTCHA_SITE_KEY = "6Le5-yYpAAAAACfY7-VXGiEflUPniW4C1OB_N0cW";
 function FormularioPedido() {
   const [searchParams] = useSearchParams();
   const [mostrarModal, setMostrarModal] = useState(false);
+  const auth = getAuth();
+  const { cart, cartTotal, clearCart } = useCart();
 
   const recaptchaRef = useRef(null);
+
+  // Check if we are in "Checkout Mode" (from Cart) or "Direct Order Mode" (from Params)
+  const isCheckoutMode = searchParams.get("tipo") === "checkout";
 
   const tipoInicial = searchParams.get("tipo") || "torta";
   const productoInicial = searchParams.get("producto") || "";
@@ -49,33 +55,56 @@ function FormularioPedido() {
         ? ["unidad"]
         : ["unidad", "pack12"];
 
-  const total =
-    tipo === "torta"
+  // Calculate Total
+  const total = isCheckoutMode
+    ? cartTotal
+    : tipo === "torta"
       ? seleccionado?.tamaños?.[tamaño] || 0
       : seleccionado?.precio || 0;
 
-  const abono = total / 2;
+  const displayTotal = isCheckoutMode ? cartTotal : total;
+  const abono = displayTotal / 2;
 
   const validarCampos = () => {
-    if (!producto || (tipo === "torta" && !tamaño) || !fechaEntrega || !nombre || !correo || !telefono) {
-      alert("Por favor completa todos los campos antes de continuar.");
+    if (isCheckoutMode && cart.length === 0) {
+      alert("Tu carrito está vacío.");
+      return false;
+    }
+    if (!isCheckoutMode && (!producto || (tipo === "torta" && !tamaño))) {
+      alert("Por favor completa la selección de productos.");
+      return false;
+    }
+    if (!fechaEntrega || !nombre || !correo || !telefono) {
+      alert("Por favor completa todos los campos de contacto y entrega.");
       return false;
     }
     return true;
   };
 
   const guardarPedido = async () => {
-    await addDoc(collection(db, "pedidos"), {
-      tipo,
-      producto,
-      tamaño,
-      precio: total,
-      abono,
-      fechaEstimada: fechaEntrega,
-      cliente: { nombre, correo, telefono },
-      fecha: Timestamp.now()
-    });
-    console.log("✅ Pedido guardado en Firebase");
+    try {
+      const orderData = {
+        items: isCheckoutMode ? cart : [{
+          tipo, producto, tamaño, precio: total
+        }],
+        total: displayTotal,
+        abono,
+        fechaEstimada: fechaEntrega,
+        cliente: { nombre, correo, telefono },
+        isCartOrder: isCheckoutMode
+      };
+
+      if (auth.currentUser) {
+        orderData.userId = auth.currentUser.uid;
+        orderData.userEmail = auth.currentUser.email;
+      }
+
+      await createOrder(orderData);
+      console.log("✅ Pedido guardado en Firebase");
+      if (isCheckoutMode) clearCart();
+    } catch (error) {
+      console.error("Error guardando pedido en DB:", error);
+    }
   };
 
   const enviarCorreo = async () => {
@@ -84,26 +113,30 @@ function FormularioPedido() {
     const token = await recaptchaRef.current.executeAsync();
     recaptchaRef.current.reset();
 
-    await guardarPedido();
+    guardarPedido();
 
     const templateParams = {
       from_name: nombre,
       reply_to: correo,
       telefono,
-      producto,
-      tamaño,
+      producto: isCheckoutMode ? "PEDIDO CARRITO WEB" : producto,
+      detalle_pedido: isCheckoutMode
+        ? cart.map(i => `${i.quantity}x ${i.name} (${i.size || 'Unidad'})`).join('\n')
+        : `${tipo} - ${producto} - ${tamaño}`,
       fechaEntrega,
-      precio: total,
+      precio: displayTotal,
       abono,
       "g-recaptcha-response": token
     };
 
     emailjs
       .send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY)
-      .then(() => alert("✅ Correo enviado correctamente."))
+      .then(() => {
+        setMostrarModal(true);
+      })
       .catch((err) => {
         console.error("❌ Error al enviar el correo:", err);
-        alert("Ocurrió un error al enviar el correo.");
+        alert("Ocurrió un error al enviar el correo. Por favor contáctanos por WhatsApp.");
       });
   };
 
@@ -119,7 +152,9 @@ function FormularioPedido() {
         <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 to-transparent"></div>
         <div className="relative z-10 text-center px-6">
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2">Haz tu Pedido</h1>
-          <p className="text-lg text-purple-200">Personaliza tu torta o elige tus dulces favoritos</p>
+          <p className="text-lg text-purple-200">
+            {isCheckoutMode ? "Confirma y coordina tu entrega" : "Personaliza tu torta o elige tus dulces favoritos"}
+          </p>
         </div>
       </div>
 
@@ -128,64 +163,83 @@ function FormularioPedido() {
           <h2 className="text-2xl font-bold text-center text-purple-800 mb-8 border-b pb-4">Detalles del Pedido</h2>
 
           <form onSubmit={handleManualSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Tipo de Producto */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">¿Qué deseas pedir?</label>
-                <select
-                  value={tipo}
-                  onChange={(e) => {
-                    setTipo(e.target.value);
-                    setProducto(""); // Resetear producto al cambiar tipo
-                    setTamaño("");
-                  }}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
-                >
-                  <option value="torta">Torta Personalizada</option>
-                  <option value="vaso">Torta en Vaso</option>
-                  <option value="alfajor">Alfajores y Galletas</option>
-                </select>
+            {isCheckoutMode ? (
+              <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 mb-6">
+                <h3 className="font-bold text-gray-700 mb-2">Resumen de tu Carrito:</h3>
+                {cart.length === 0 ? (
+                  <p className="text-red-500 italic">Tu carrito está vacío.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    {cart.map((item, idx) => (
+                      <li key={idx} className="flex justify-between">
+                        <span>{item.quantity}x {item.name} <span className="text-xs text-purple-500">({item.size || "Unidad"})</span></span>
+                        <span className="font-semibold">${(item.price * item.quantity).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-
-              {/* Producto Específico */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Sabor / Modelo</label>
-                <select
-                  value={producto}
-                  onChange={(e) => setProducto(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
-                  disabled={!tipo}
-                >
-                  <option value="">Selecciona una opción</option>
-                  {productos.map((p) => (
-                    <option key={p.id} value={p.nombre}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tamaño (Solo si aplica) */}
-              {tamañosDisponibles.length > 0 && (
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Tipo de Producto */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Tamaño</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">¿Qué deseas pedir?</label>
                   <select
-                    value={tamaño}
-                    onChange={(e) => setTamaño(e.target.value)}
+                    value={tipo}
+                    onChange={(e) => {
+                      setTipo(e.target.value);
+                      setProducto("");
+                      setTamaño("");
+                    }}
                     className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
                   >
-                    <option value="">Selecciona tamaño</option>
-                    {tamañosDisponibles.map((t) => (
-                      <option key={t} value={t}>
-                        {t === "unidad" ? "Unidad" : t === "pack12" ? "Pack x 12" : t}
+                    <option value="torta">Torta Personalizada</option>
+                    <option value="vaso">Torta en Vaso</option>
+                    <option value="alfajor">Alfajores y Galletas</option>
+                  </select>
+                </div>
+
+                {/* Producto Específico */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Sabor / Modelo</label>
+                  <select
+                    value={producto}
+                    onChange={(e) => setProducto(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                    disabled={!tipo}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {productos.map((p) => (
+                      <option key={p.id} value={p.nombre}>
+                        {p.nombre}
                       </option>
                     ))}
                   </select>
                 </div>
-              )}
 
-              {/* Fecha Entrega */}
-              <div>
+                {/* Tamaño (Solo si aplica) */}
+                {tamañosDisponibles.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Tamaño</label>
+                    <select
+                      value={tamaño}
+                      onChange={(e) => setTamaño(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                    >
+                      <option value="">Selecciona tamaño</option>
+                      {tamañosDisponibles.map((t) => (
+                        <option key={t} value={t}>
+                          {t === "unidad" ? "Unidad" : t === "pack12" ? "Pack x 12" : t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Fecha de Entrega Estimada</label>
                 <input
                   type="date"
@@ -198,7 +252,6 @@ function FormularioPedido() {
               </div>
             </div>
 
-            {/* Cliente Info */}
             <div className="border-t pt-6 mt-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Tus Datos</h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -229,11 +282,10 @@ function FormularioPedido() {
               </div>
             </div>
 
-            {/* Resumen Precio */}
             <div className="bg-purple-50 p-4 rounded-xl flex justify-between items-center border border-purple-100">
               <div>
                 <p className="text-sm text-gray-600">Total Estimado:</p>
-                <p className="text-2xl font-bold text-purple-700">${total.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-purple-700">${displayTotal.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Abono (50%):</p>

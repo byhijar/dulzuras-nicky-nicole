@@ -2,16 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Allow public read access to all products
-    match /products/{productId} {
+    // Reglas para la colección de productos
+    match /products/{document=**} {
+      // Cualquiera puede leer (ver el catálogo)
       allow read: if true;
-      allow write: if false; // Only Admin SDK can write
+      
+      // Solo Nicky y admin pueden escribir
+      allow write: if request.auth != null && 
+                   (request.auth.token.email == 'dulzuras.nickynicole@gmail.com' || 
+                    request.auth.token.email == 'byhijar@gmail.com');
     }
 
-    // Allow public creation of orders
-    match /pedidos/{pedidoId} {
-      allow create: if true;
-      allow read, update, delete: if false;
+    // Reglas para pedidos
+    match /pedidos/{document=**} {
+      // Cualquiera autenticado puede crear un pedido (su propio pedido)
+      // Ojo: Si quieres permitir pedidos de invitados, debes quitar 'request.auth != null'
+      // pero para el historial se necesita auth.
+      allow create: if true; 
+
+      // Solo el dueño del pedido (o el admin) puede leerlo
+      allow read: if request.auth != null && 
+                  (request.auth.uid == resource.data.userId || 
+                   request.auth.token.email == 'dulzuras.nickynicole@gmail.com' || 
+                   request.auth.token.email == 'byhijar@gmail.com');
     }
   }
 }

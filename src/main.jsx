@@ -7,33 +7,47 @@ import Layout from './components/Layout.jsx'
 import Catalogo from './pages/Catalogo.jsx'
 import Contacto from './pages/Contacto.jsx'
 import SobreMi from './pages/SobreMi.jsx'
-import FormularioPedido from './components/FormularioPedido.jsx'
+import Personalizar from './pages/Personalizar.jsx'
+import Checkout from './pages/Checkout.jsx'
+import ClientDashboard from './pages/client/ClientDashboard.jsx'
 
 // Admin Views
 import Login from './pages/admin/Login.jsx'
 import RequireAuth from './components/admin/RequireAuth.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import { CartProvider } from './context/CartContext.jsx'
+
+import ScrollToTop from './components/ScrollToTop.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<App />} />
-          <Route path="catalogo/:categoria?" element={<Catalogo />} />
-          <Route path="contacto" element={<Contacto />} />
-          <Route path="sobre-mi" element={<SobreMi />} />
-          <Route path="formulario" element={<FormularioPedido />} />
-        </Route>
+    <CartProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<App />} />
+            <Route path="catalogo/:categoria?" element={<Catalogo />} />
+            <Route path="contacto" element={<Contacto />} />
+            <Route path="sobre-mi" element={<SobreMi />} />
 
-        {/* Admin Routes (No Layout or distinct Layout) */}
-        <Route path="/login" element={<Login />} />
+            {/* New Separated Flows */}
+            <Route path="personalizar" element={<Personalizar />} />
+            <Route path="formulario" element={<Personalizar />} /> {/* Legacy Redirect/Alias */}
+            <Route path="checkout" element={<Checkout />} />
 
-        <Route element={<RequireAuth />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Route>
+            <Route path="perfil" element={<ClientDashboard />} />
+            <Route path="login" element={<Login />} />
+          </Route>
 
-      </Routes>
-    </BrowserRouter>
+          {/* Admin Routes (No Layout or distinct Layout) */}
+
+          <Route element={<RequireAuth />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+
+        </Routes>
+      </BrowserRouter>
+    </CartProvider>
   </StrictMode>,
 )
