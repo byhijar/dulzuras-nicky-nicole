@@ -14,7 +14,10 @@ const TEMPLATE_ID = "template_e57l7h9";
 const PUBLIC_KEY = "7NppPVTz-0ZFnPS_6";
 // Clave de prueba oficial de Google para localhost.
 // Reemplazar con la clave real del cliente cuando se despliegue en dominio final.
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+// Producción Key Fallback (Temporarily hardcoded for debugging)
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le5-yYpAAAAACfY7-VXGiEflUPniW4C1OB_N0cW";
+
+console.log("ReCAPTCHA Key Loaded:", RECAPTCHA_SITE_KEY); // Debugging
 
 function Personalizar() {
     const [mostrarModal, setMostrarModal] = useState(false);
