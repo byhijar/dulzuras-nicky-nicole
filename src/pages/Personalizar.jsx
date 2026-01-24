@@ -15,7 +15,7 @@ const PUBLIC_KEY = "7NppPVTz-0ZFnPS_6";
 // Clave de prueba oficial de Google para localhost.
 // Reemplazar con la clave real del cliente cuando se despliegue en dominio final.
 // Producción Key Fallback (Temporarily hardcoded for debugging)
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le5-yYpAAAAACfY7-VXGiEflUPniW4C1OB_N0cW";
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LfCRFYrAAAAAFlcy9-GPenmLM54R_mI1QTzaDmX";
 
 console.log("ReCAPTCHA Key Loaded:", RECAPTCHA_SITE_KEY); // Debugging
 
