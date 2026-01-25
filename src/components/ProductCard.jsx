@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCart } from "../context/CartContext";
+import { FaImages } from "react-icons/fa"; // New icon
 
 function ProductCard({
     product,
@@ -9,11 +10,13 @@ function ProductCard({
     ctaLabel,
     ctaColor = "purple"
 }) {
+    const navigate = useNavigate();
     const { addToCart } = useCart();
 
     const {
         name,
         imageUrl,
+        images, // Destructure images
         description,
         filling,
         ingredients,
@@ -28,12 +31,14 @@ function ProductCard({
             ? `Precio: $${price}`
             : null;
 
-    const handleCardClick = () => {
-        if (onCardClick) onCardClick(product);
-    };
+    // ... existing logic ...
 
-    const handleCtaClick = (e) => {
-        e.stopPropagation();
+    const handleCardClick = () => {
+        if (onCardClick) {
+            onCardClick(product);
+        } else if (ctaHref) {
+            navigate(ctaHref);
+        }
     };
 
     const btnColorClass =
@@ -43,32 +48,35 @@ function ProductCard({
 
     return (
         <motion.div
-            whileHover={{ y: -5, scale: 1.02 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            // ... props
             onClick={handleCardClick}
-            className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow p-4 flex flex-col justify-between h-full ${onCardClick ? "cursor-pointer" : ""}`}
+            className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow p-4 flex flex-col justify-between h-full cursor-pointer group`}
         >
             <div>
                 <div className={`w-full h-48 rounded-lg mb-4 overflow-hidden relative flex items-center justify-center ${!imageUrl ? 'bg-purple-50' : ''}`}>
+                    {/* Photo Badge */}
+                    {images && images.length > 1 && (
+                        <div className="absolute top-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm z-10">
+                            <FaImages /> +{images.length - 1}
+                        </div>
+                    )}
+
                     {imageUrl ? (
                         <img
                             src={imageUrl}
-                            alt={name}
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "/logo-nicky-transparent.png";
-                                e.target.className = "w-full h-full object-contain opacity-50 p-4";
-                                e.target.parentElement.classList.add("bg-purple-50");
-                            }}
-                            className="w-full h-full object-cover"
+                            // ... props
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-500" // Added subtle zoom
                         />
                     ) : (
+                        // ... fallback
                         <img
                             src="/logo-nicky-transparent.png"
                             alt={name}
                             className="w-full h-full object-contain opacity-50 p-4"
                         />
                     )}
+
+
                 </div>
 
                 <h3 className="text-xl font-bold text-purple-700 mb-1">{name}</h3>
@@ -101,6 +109,12 @@ function ProductCard({
                         onClick={(e) => {
                             e.stopPropagation();
 
+                            // 0. If href provided, navigate there
+                            if (ctaHref) {
+                                navigate(ctaHref);
+                                return;
+                            }
+
                             // 1. If we have a modal handler, prefer using it (especially for items with options)
                             if (onCardClick) {
                                 onCardClick(product);
@@ -110,11 +124,12 @@ function ProductCard({
                             // 2. Direct Add (Fallback if no modal handler passed)
                             if (product.sizes) {
                                 // If it needs size but no handler is passed, we can't easily add.
+                                // Fallback logic: Try to find a way to customize?
+                                // For now, if no ctaHref and no onCardClick, alert is still the fail-safe
                                 alert("Este producto requiere seleccionar opciones. Por favor visualízalo en el catálogo.");
                             } else {
                                 // Direct Add for simple products
                                 addToCart(product, 1);
-                                // Optional: Feedback toast? Rely on sidebar opening for now.
                             }
                         }}
                         className={`mt-4 w-full block text-center py-2 rounded text-white font-semibold transition flex items-center justify-center gap-2 ${btnColorClass}`}
@@ -123,7 +138,7 @@ function ProductCard({
                     </button>
                 )}
             </div>
-        </motion.div>
+        </motion.div >
     );
 }
 

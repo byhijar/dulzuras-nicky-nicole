@@ -5,10 +5,12 @@ import { getProducts } from "../../services/productService";
 import { createProduct, updateProduct, deleteProduct } from "../../services/adminService";
 import { FaEdit, FaTrash, FaPlus, FaTimes, FaBoxOpen, FaShoppingBag, FaChartPie, FaSignOutAlt } from "react-icons/fa";
 import AdminOrders from "../../components/admin/AdminOrders";
+import { useToast } from "../../context/ToastContext";
 
 function AdminDashboard() {
     const auth = getAuth();
     const navigate = useNavigate();
+    const { addToast } = useToast();
 
     // State
     const [products, setProducts] = useState([]);
@@ -17,6 +19,10 @@ function AdminDashboard() {
     const [editingProduct, setEditingProduct] = useState(null);
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'products', 'orders'
 
+    // Variants State
+    const [hasVariants, setHasVariants] = useState(false);
+    const [variants, setVariants] = useState([]);
+
     // Form State
     const [formData, setFormData] = useState({
         name: "",
@@ -24,6 +30,7 @@ function AdminDashboard() {
         category: "tortas",
         price: "",
         imageUrl: "",
+        images: [], // Gallery
         stock: 0,
         isFeatured: false
     });
@@ -39,7 +46,7 @@ function AdminDashboard() {
             setProducts(data);
         } catch (error) {
             console.error("Error loading products:", error);
-            alert("Error al cargar productos.");
+            addToast("Error al cargar productos.", "error");
         } finally {
             setLoading(false);
         }
@@ -53,23 +60,43 @@ function AdminDashboard() {
     const handleOpenModal = (product = null) => {
         if (product) {
             setEditingProduct(product);
+
+            // Parse existing sizes if any
+            let parsedVariants = [];
+            let hasSizes = false;
+
+            if (product.sizes && Object.keys(product.sizes).length > 0) {
+                hasSizes = true;
+                parsedVariants = Object.entries(product.sizes).map(([name, price]) => ({
+                    name,
+                    price
+                }));
+            }
+
+            setHasVariants(hasSizes);
+            setVariants(parsedVariants.length > 0 ? parsedVariants : [{ name: "", price: "" }]);
+
             setFormData({
                 name: product.name || "",
                 description: product.description || "",
                 category: product.category || "tortas",
                 price: product.price || "",
                 imageUrl: product.imageUrl || "",
+                images: product.images || [], // Load existing gallery
                 stock: product.stock || 0,
                 isFeatured: product.isFeatured || false
             });
         } else {
             setEditingProduct(null);
+            setHasVariants(false);
+            setVariants([{ name: "", price: "" }]); // Start with 1 empty row
             setFormData({
                 name: "",
                 description: "",
                 category: "tortas",
                 price: "",
                 imageUrl: "",
+                images: [],
                 stock: 0,
                 isFeatured: false
             });
@@ -93,25 +120,39 @@ function AdminDashboard() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Process Variants
+            let sizesObject = null;
+            if (hasVariants) {
+                sizesObject = {};
+                variants.forEach(v => {
+                    if (v.name && v.price) {
+                        sizesObject[v.name] = Number(v.price);
+                    }
+                });
+                // If empty valid variants, fallback to null
+                if (Object.keys(sizesObject).length === 0) sizesObject = null;
+            }
+
             const payload = {
                 ...formData,
                 price: formData.price ? Number(formData.price) : null,
-                stock: Number(formData.stock) || 0
+                stock: Number(formData.stock) || 0,
+                sizes: sizesObject // Add processed sizes
             };
 
             if (editingProduct) {
                 await updateProduct(editingProduct.id, payload);
-                alert("Producto actualizado correctamente");
+                addToast("Producto actualizado correctamente", "success");
             } else {
                 await createProduct(payload);
-                alert("Producto creado correctamente");
+                addToast("Producto creado correctamente", "success");
             }
 
             handleCloseModal();
             fetchProducts(); // Refresh list
         } catch (error) {
             console.error("Error saving product:", error);
-            alert("Error al guardar el producto.");
+            addToast("Error al guardar el producto.", "error");
         }
     };
 
@@ -119,10 +160,11 @@ function AdminDashboard() {
         if (!window.confirm("¿Seguro que deseas eliminar este producto?")) return;
         try {
             await deleteProduct(id);
+            addToast("Producto eliminado", "info");
             fetchProducts();
         } catch (error) {
             console.error("Delete error:", error);
-            alert("Error al eliminar.");
+            addToast("Error al eliminar.", "error");
         }
     };
 
@@ -256,8 +298,8 @@ function AdminDashboard() {
                                                 </td>
                                                 <td className="p-4">
                                                     <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${product.category === 'tortas' ? 'bg-pink-100 text-pink-700' :
-                                                            product.category === 'vasos' ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-yellow-100 text-yellow-700'
+                                                        product.category === 'vasos' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-yellow-100 text-yellow-700'
                                                         }`}>
                                                         {product.category}
                                                     </span>
@@ -372,14 +414,57 @@ function AdminDashboard() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">URL de Imagen</label>
-                                <input
-                                    name="imageUrl"
-                                    value={formData.imageUrl}
-                                    onChange={handleChange}
-                                    placeholder="https://..."
-                                    className="w-full border-gray-300 rounded-lg p-2 outline-none border"
-                                />
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Galería de Imágenes</label>
+                                <div className="space-y-3">
+                                    {/* Main Image Input */}
+                                    <div className="flex gap-2">
+                                        <input
+                                            name="imageUrl"
+                                            value={formData.imageUrl}
+                                            onChange={handleChange}
+                                            placeholder="URL Principal (https://...)"
+                                            className="w-full border-gray-300 rounded-lg p-2 outline-none border text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Additional Images Manager */}
+                                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                        <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Fotos Adicionales</label>
+
+                                        {formData.images && formData.images.map((img, idx) => (
+                                            <div key={idx} className="flex gap-2 mb-2">
+                                                <input
+                                                    value={img}
+                                                    onChange={(e) => {
+                                                        const newImages = [...formData.images];
+                                                        newImages[idx] = e.target.value;
+                                                        setFormData(prev => ({ ...prev, images: newImages }));
+                                                    }}
+                                                    className="flex-1 border-gray-300 rounded p-1.5 text-sm outline-none border"
+                                                    placeholder={`URL Foto Extra ${idx + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newImages = formData.images.filter((_, i) => i !== idx);
+                                                        setFormData(prev => ({ ...prev, images: newImages }));
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 px-2 font-bold"
+                                                >
+                                                    <FaTrash size={12} />
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, images: [...(prev.images || []), ""] }))}
+                                            className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-1"
+                                        >
+                                            <FaPlus size={10} /> Agregar otra foto
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-3 bg-purple-50 p-3 rounded-lg border border-purple-100">
@@ -394,6 +479,78 @@ function AdminDashboard() {
                                 <label htmlFor="featured" className="text-sm font-bold text-purple-800 cursor-pointer select-none">
                                     Destacar en Inicio ⭐
                                 </label>
+                            </div>
+
+                            {/* VARIANTS / PACKS SECTION */}
+                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="hasVariants"
+                                            checked={hasVariants}
+                                            onChange={(e) => setHasVariants(e.target.checked)}
+                                            className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500"
+                                        />
+                                        <label htmlFor="hasVariants" className="text-sm font-bold text-orange-900 cursor-pointer select-none">
+                                            ¿Habilitar Packs / Opciones?
+                                        </label>
+                                    </div>
+                                    <span className="text-xs text-orange-600 font-medium hidden md:block">
+                                        (Ej: "Pack 12 un.", "Caja Regalo")
+                                    </span>
+                                </div>
+
+                                {hasVariants && (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        {variants.map((variant, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <input
+                                                    placeholder="Nombre (ej: Caja x6)"
+                                                    value={variant.name}
+                                                    onChange={(e) => {
+                                                        const newVariants = [...variants];
+                                                        newVariants[idx].name = e.target.value;
+                                                        setVariants(newVariants);
+                                                    }}
+                                                    className="flex-1 border-gray-300 rounded-lg p-2 text-sm outline-none border focus:border-orange-400"
+                                                />
+                                                <div className="relative w-32">
+                                                    <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0"
+                                                        value={variant.price}
+                                                        onChange={(e) => {
+                                                            const newVariants = [...variants];
+                                                            newVariants[idx].price = e.target.value;
+                                                            setVariants(newVariants);
+                                                        }}
+                                                        className="w-full pl-6 border-gray-300 rounded-lg p-2 text-sm outline-none border focus:border-orange-400"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newVariants = variants.filter((_, i) => i !== idx);
+                                                        setVariants(newVariants);
+                                                    }}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                >
+                                                    <FaTrash size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setVariants([...variants, { name: "", price: "" }])}
+                                            className="text-xs font-bold text-orange-700 hover:text-orange-900 flex items-center gap-1 mt-2"
+                                        >
+                                            <FaPlus size={10} /> Agregar Opción
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-4 flex justify-end gap-3 border-t">

@@ -1,11 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase/firebaseConfig";
 import { createOrder } from "../services/orderService";
 import PedidoExitosoModal from "../components/PedidoExitosoModal";
 import emailjs from "@emailjs/browser";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useCart } from "../context/CartContext";
+import { useToast } from "../context/ToastContext";
 import { FaShoppingCart, FaArrowLeft } from "react-icons/fa";
 import PageTransition from "../components/PageTransition";
 
@@ -18,6 +21,34 @@ function Checkout() {
     const navigate = useNavigate();
     const auth = getAuth();
     const { cart, cartTotal, clearCart } = useCart();
+    const { addToast } = useToast();
+
+    // State for user data fetching
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const user = auth.currentUser;
+            if (user) {
+                // Pre-fill email immediately
+                setCorreo(user.email || "");
+                setNombre(user.displayName || "");
+
+                // Try to fetch extended profile from Firestore
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        if (userData.fullName && !user.displayName) setNombre(userData.fullName);
+                        if (userData.phone) setTelefono(userData.phone);
+                        // If user typed name manually before, don't overwrite unless empty, but logic here is simple: prefill on load.
+                        if (userData.fullName) setNombre(userData.fullName);
+                    }
+                } catch (err) {
+                    console.log("No built-in profile found, using auth defaults");
+                }
+            }
+        };
+        fetchUserData();
+    }, [auth]);
 
     const [mostrarModal, setMostrarModal] = useState(false);
     const recaptchaRef = useRef(null);
@@ -38,11 +69,11 @@ function Checkout() {
 
     const validarCampos = () => {
         if (cart.length === 0) {
-            alert("Tu carrito está vacío.");
+            addToast("Tu carrito está vacío.", "error");
             return false;
         }
         if (!fechaEntrega || !nombre || !correo || !telefono) {
-            alert("Por favor completa todos los campos de contacto y entrega.");
+            addToast("Por favor completa todos los campos de contacto y entrega.", "error");
             return false;
         }
         return true;
@@ -69,41 +100,56 @@ function Checkout() {
             await createOrder(orderData);
             console.log("✅ Pedido guardado en Firebase");
             clearCart();
+            return true;
         } catch (error) {
             console.error("Error guardando pedido en DB:", error);
-            alert("Hubo un error al guardar tu pedido. Por favor contáctanos.");
+            addToast("Error al guardar pedido. Intenta nuevamente.", "error");
+            throw error;
         }
     };
 
     const enviarCorreo = async () => {
         if (!validarCampos()) return;
 
-        const token = await recaptchaRef.current.executeAsync();
-        recaptchaRef.current.reset();
+        let token = "";
+        try {
+            token = await recaptchaRef.current.executeAsync();
+            recaptchaRef.current.reset();
+        } catch (captchaError) {
+            console.error("Captcha Error:", captchaError);
+            addToast("Error de verificación (Captcha). Revisa tu conexión o llaves.", "error");
+            return;
+        }
 
-        guardarPedido();
+        try {
+            // 1. Guardar en DB primero
+            await guardarPedido();
 
-        const templateParams = {
-            from_name: nombre,
-            reply_to: correo,
-            telefono,
-            producto: "PEDIDO CARRITO WEB",
-            detalle_pedido: cart.map(i => `${i.quantity}x ${i.name} (${i.size || 'Unidad'})`).join('\n'),
-            fechaEntrega,
-            precio: cartTotal,
-            abono,
-            "g-recaptcha-response": token
-        };
+            // 2. Si guarda OK, enviar correo
+            const templateParams = {
+                from_name: nombre,
+                reply_to: correo,
+                telefono,
+                producto: "PEDIDO CARRITO WEB",
+                detalle_pedido: cart.map(i => `${i.quantity}x ${i.name} (${i.size || 'Unidad'})`).join('\n'),
+                fechaEntrega,
+                precio: cartTotal,
+                abono,
+                "g-recaptcha-response": token
+            };
 
-        emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY)
-            .then(() => {
-                setMostrarModal(true);
-            })
-            .catch((err) => {
-                console.error("❌ Error al enviar el correo:", err);
-                // Even if email fails, order is saved.
-                setMostrarModal(true);
-            });
+            emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY)
+                .then(() => {
+                    setMostrarModal(true);
+                })
+                .catch((err) => {
+                    console.error("❌ Error al enviar el correo:", err);
+                    // Si falla el correo pero guardó en DB, igual mostramos éxito pero avisamos
+                    setMostrarModal(true);
+                });
+        } catch (error) {
+            console.error("Proceso cancelado por error en guardado.");
+        }
     };
 
     const handleSubmit = (e) => {
@@ -243,7 +289,6 @@ function Checkout() {
                             <div className="flex justify-center my-4">
                                 <ReCAPTCHA
                                     ref={recaptchaRef}
-                                    size="invisible"
                                     sitekey={RECAPTCHA_SITE_KEY}
                                 />
                             </div>

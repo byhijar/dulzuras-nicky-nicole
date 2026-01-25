@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard";
 import PageHeader from "../components/PageHeader";
 import PageTransition from "../components/PageTransition";
+import TortaModal from "../components/TortaModal";
 import { getProducts } from "../services/productService";
 
 function Catalogo() {
@@ -12,6 +13,7 @@ function Catalogo() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tortaSeleccionada, setTortaSeleccionada] = useState(null);
 
   // Map URL params (singular) to Firestore categories (plural)
   const categoryMap = {
@@ -124,8 +126,9 @@ function Catalogo() {
                 >
                   <ProductCard
                     product={producto}
-                    ctaHref={`/formulario?tipo=${categoria}&producto=${encodeURIComponent(producto.name)}`}
-                    ctaLabel={currentCategory === "tortas" ? "Personalizar" : "Encargar"}
+                    onCardClick={(p) => setTortaSeleccionada(p)} // Open Modal for ALL categories
+                    ctaLabel={producto.sizes ? "Ver Opciones" : "Agregar"}
+                    ctaColor="purple"
                   />
                 </motion.div>
               ))}
@@ -142,6 +145,12 @@ function Catalogo() {
           </>
         )}
       </section>
+
+      {/* Modal Selection */}
+      <TortaModal
+        torta={tortaSeleccionada}
+        onClose={() => setTortaSeleccionada(null)}
+      />
     </PageTransition>
   );
 }

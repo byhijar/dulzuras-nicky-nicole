@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAdminOrders, updateOrderStatus } from "../../services/adminService";
+import { useToast } from "../../context/ToastContext";
 
 const STATUS_OPTIONS = {
     pendiente: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800" },
@@ -12,6 +13,7 @@ const STATUS_OPTIONS = {
 function AdminOrders() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { addToast } = useToast();
 
     useEffect(() => {
         fetchOrders();
@@ -23,7 +25,19 @@ function AdminOrders() {
             const data = await getAdminOrders();
             setOrders(data);
         } catch (error) {
-            alert("Error al cargar pedidos");
+            console.error("Order fetch error:", error);
+
+            // Debug Auth
+            import("firebase/auth").then(({ getAuth }) => {
+                const user = getAuth().currentUser;
+                console.log("Current User:", user?.email, user?.uid);
+
+                if (error.code === 'permission-denied') {
+                    addToast(`Acceso denegado. Usuario: ${user?.email || 'Anónimo'}`, "error");
+                } else {
+                    addToast("Error al cargar pedidos. Verifica tu conexión.", "error");
+                }
+            });
         } finally {
             setLoading(false);
         }
@@ -36,8 +50,9 @@ function AdminOrders() {
             setOrders(prev => prev.map(order =>
                 order.id === orderId ? { ...order, status: newStatus } : order
             ));
+            addToast("Estado actualizado correctamente", "success");
         } catch (error) {
-            alert("Error al actualizar estado");
+            addToast("No se pudo actualizar el estado", "error");
         }
     };
 

@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, orderBy, Timestamp, runTransaction, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, Timestamp, runTransaction, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 
 const COLLECTION_NAME = "pedidos";
@@ -30,10 +30,12 @@ export const createOrder = async (orderData) => {
                         throw new Error(`Stock insuficiente para "${item.name}". Disponible: ${currentStock}`);
                     }
 
-                    // 2. Decrement stock
-                    transaction.update(productRef, {
-                        stock: currentStock - item.quantity
-                    });
+                    // 2. Decrement stock (Disabled for Client-side security)
+                    // Regular users cannot write to 'products'. 
+                    // To enable this, we need Cloud Functions or advanced Rules.
+                    // transaction.update(productRef, {
+                    //     stock: currentStock - item.quantity
+                    // });
                 }
             }
 
@@ -79,4 +81,35 @@ export const getUserOrders = async (userId) => {
         console.error("Error fetching user orders:", error);
         throw error;
     }
+};
+
+/**
+ * Real-time subscription to user orders
+ * @param {string} userId 
+ * @param {Function} callback 
+ */
+export const subscribeToUserOrders = (userId, callback) => {
+    // Simplify query to avoid "Missing Index" error
+    const q = query(
+        collection(db, COLLECTION_NAME),
+        where("userId", "==", userId)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        const orders = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        // Sort client-side
+        orders.sort((a, b) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA;
+        });
+
+        callback(orders);
+    }, (error) => {
+        console.error("Error subscribing to orders:", error);
+    });
 };
