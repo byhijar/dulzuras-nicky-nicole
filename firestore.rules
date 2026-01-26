@@ -2,29 +2,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Reglas para la colección de productos
-    match /products/{document=**} {
-      // Cualquiera puede leer (ver el catálogo)
-      allow read: if true;
-      
-      // Solo Nicky y admin pueden escribir
-      allow write: if request.auth != null && 
-                   (request.auth.token.email == 'dulzuras.nickynicole@gmail.com' || 
-                    request.auth.token.email == 'byhijar@gmail.com');
+    // Función para verificar si es admin
+    function isAdmin() {
+      // Agregado el correo de Nicky y el tuyo
+      return request.auth.token.email in ['dulzuras.nickynicole@gmail.com', 'byhijar@gmail.com'];
     }
 
-    // Reglas para pedidos
-    match /pedidos/{document=**} {
-      // Cualquiera autenticado puede crear un pedido (su propio pedido)
-      // Ojo: Si quieres permitir pedidos de invitados, debes quitar 'request.auth != null'
-      // pero para el historial se necesita auth.
-      allow create: if true; 
+    // Regla para usuarios: Cada uno puede leer y escribir SOLO su propia info
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
 
-      // Solo el dueño del pedido (o el admin) puede leerlo
-      allow read: if request.auth != null && 
-                  (request.auth.uid == resource.data.userId || 
-                   request.auth.token.email == 'dulzuras.nickynicole@gmail.com' || 
-                   request.auth.token.email == 'byhijar@gmail.com');
+    // Regla para productos (clientes leen, admins escriben)
+    match /products/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Regla para pedidos
+    match /pedidos/{pedidoId} {
+      allow create: if request.auth != null; // Cualquiera logueado compra
+      
+      // Lee si es dueño del pedido O si es admin
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin()
+      );
+      
+      // Solo admin cambia estados
+      allow update: if request.auth != null && isAdmin();
     }
   }
 }

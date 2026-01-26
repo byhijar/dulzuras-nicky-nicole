@@ -1,6 +1,7 @@
 // Importa lo necesario de Firebase
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Tu configuración real
 // Tu configuración real
@@ -21,6 +22,7 @@ const app = initializeApp(firebaseConfig);
 
 // Inicializa Firestore (lo que usarás ahora)
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Exportamos la base de datos
-export { db };
+export { db, storage };

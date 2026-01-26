@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // Todo el mundo puede ver las fotos (Catálogo público)
+      allow read: if true;
+      
+      // Solo los admins pueden subir/borrar fotos
+      allow write: if request.auth != null && (
+        request.auth.token.email in ['dulzuras.nickynicole@gmail.com', 'byhijar@gmail.com']
+      );
+    }
+  }
+}

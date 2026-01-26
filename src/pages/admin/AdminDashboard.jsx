@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { getAuth, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { getProducts } from "../../services/productService";
-import { createProduct, updateProduct, deleteProduct } from "../../services/adminService";
-import { FaEdit, FaTrash, FaPlus, FaTimes, FaBoxOpen, FaShoppingBag, FaChartPie, FaSignOutAlt } from "react-icons/fa";
+import { createProduct, updateProduct, deleteProduct, uploadProductImage } from "../../services/adminService";
+import { FaEdit, FaTrash, FaPlus, FaTimes, FaBoxOpen, FaShoppingBag, FaChartPie, FaSignOutAlt, FaUpload, FaCamera } from "react-icons/fa";
 import AdminOrders from "../../components/admin/AdminOrders";
 import { useToast } from "../../context/ToastContext";
 
@@ -34,6 +34,39 @@ function AdminDashboard() {
         stock: 0,
         isFeatured: false
     });
+
+    const [uploading, setUploading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    // Filter products
+    const filteredProducts = products.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleImageUpload = async (e, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const url = await uploadProductImage(file);
+            /* eslint-disable-next-line */
+            console.log("Uploaded:", url);
+
+            if (type === 'main') {
+                setFormData(prev => ({ ...prev, imageUrl: url }));
+            } else if (type === 'gallery') {
+                setFormData(prev => ({ ...prev, images: [...(prev.images || []), url] }));
+            }
+            addToast("Imagen subida correctamente", "success");
+        } catch (error) {
+            console.error("Upload failed", error);
+            addToast("Error al subir imagen", "error");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     useEffect(() => {
         fetchProducts();
@@ -82,14 +115,16 @@ function AdminDashboard() {
                 category: product.category || "tortas",
                 price: product.price || "",
                 imageUrl: product.imageUrl || "",
-                images: product.images || [], // Load existing gallery
+                images: product.images || [],
                 stock: product.stock || 0,
-                isFeatured: product.isFeatured || false
+                isFeatured: product.isFeatured || false,
+                filling: product.filling || "",
+                ingredients: product.ingredients || ""
             });
         } else {
             setEditingProduct(null);
             setHasVariants(false);
-            setVariants([{ name: "", price: "" }]); // Start with 1 empty row
+            setVariants([{ name: "", price: "" }]);
             setFormData({
                 name: "",
                 description: "",
@@ -98,7 +133,9 @@ function AdminDashboard() {
                 imageUrl: "",
                 images: [],
                 stock: 0,
-                isFeatured: false
+                isFeatured: false,
+                filling: "",
+                ingredients: ""
             });
         }
         setIsModalOpen(true);
@@ -260,14 +297,24 @@ function AdminDashboard() {
 
                 {activeTab === "products" && (
                     <div className="animate-in fade-in duration-300">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                             <h2 className="text-2xl font-bold text-gray-800">Inventario</h2>
-                            <button
-                                onClick={() => handleOpenModal()}
-                                className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition font-bold flex items-center gap-2"
-                            >
-                                <FaPlus /> Agregar
-                            </button>
+
+                            <div className="flex gap-2 w-full md:w-auto">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar producto..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500 w-full"
+                                />
+                                <button
+                                    onClick={() => handleOpenModal()}
+                                    className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition font-bold flex items-center gap-2 shrink-0"
+                                >
+                                    <FaPlus /> Agregar
+                                </button>
+                            </div>
                         </div>
 
                         {loading ? (
@@ -285,7 +332,7 @@ function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {products.map(product => (
+                                        {filteredProducts.map(product => (
                                             <tr key={product.id} className="hover:bg-gray-50 transition">
                                                 <td className="p-4 flex items-center gap-3">
                                                     <img
@@ -375,6 +422,8 @@ function AdminDashboard() {
                                         <option value="tortas">Tortas</option>
                                         <option value="vasos">Vasos</option>
                                         <option value="alfajores">Alfajores</option>
+                                        <option value="cocteleria">Coctelería</option>
+                                        <option value="otros">Otros</option>
                                     </select>
                                 </div>
                                 <div>
@@ -386,6 +435,30 @@ function AdminDashboard() {
                                         onChange={handleChange}
                                         placeholder="0"
                                         className="w-full border-gray-300 rounded-lg p-2 outline-none border"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Subtitle Fields */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Relleno (Subtítulo principal)</label>
+                                    <input
+                                        name="filling"
+                                        value={formData.filling || ""}
+                                        onChange={handleChange}
+                                        placeholder="Ej: Chantilly + Manjar"
+                                        className="w-full border-gray-300 rounded-lg p-2 outline-none border placeholder-gray-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Ingredientes / Detalles</label>
+                                    <input
+                                        name="ingredients"
+                                        value={formData.ingredients || ""}
+                                        onChange={handleChange}
+                                        placeholder="Ej: Bizcocho vainilla, remojo 3 leches"
+                                        className="w-full border-gray-300 rounded-lg p-2 outline-none border placeholder-gray-400"
                                     />
                                 </div>
                             </div>
@@ -414,19 +487,40 @@ function AdminDashboard() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Galería de Imágenes</label>
-                                <div className="space-y-3">
-                                    {/* Main Image Input */}
-                                    <div className="flex gap-2">
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Imagen Principal</label>
+
+                                <div className="flex gap-2 items-center">
+                                    <div className="relative flex-1">
                                         <input
                                             name="imageUrl"
                                             value={formData.imageUrl}
                                             onChange={handleChange}
-                                            placeholder="URL Principal (https://...)"
-                                            className="w-full border-gray-300 rounded-lg p-2 outline-none border text-sm"
+                                            placeholder="URL de la imagen..."
+                                            className="w-full border-gray-300 rounded-lg p-2 pl-10 outline-none border text-sm"
                                         />
+                                        <FaCamera className="absolute left-3 top-2.5 text-gray-400" />
                                     </div>
 
+                                    <label className={`cursor-pointer bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-200 transition flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <FaUpload />
+                                        {uploading ? 'Subiendo...' : 'Subir'}
+                                        <input
+                                            type="file"
+                                            hidden
+                                            accept="image/*"
+                                            disabled={uploading}
+                                            onChange={(e) => handleImageUpload(e, 'main')}
+                                        />
+                                    </label>
+                                </div>
+                                {formData.imageUrl && (
+                                    <img src={formData.imageUrl} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded border" />
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Galería de Imágenes</label>
+                                <div className="space-y-3">
                                     {/* Additional Images Manager */}
                                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                         <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Fotos Adicionales</label>
@@ -456,13 +550,26 @@ function AdminDashboard() {
                                             </div>
                                         ))}
 
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData(prev => ({ ...prev, images: [...(prev.images || []), ""] }))}
-                                            className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-1"
-                                        >
-                                            <FaPlus size={10} /> Agregar otra foto
-                                        </button>
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({ ...prev, images: [...(prev.images || []), ""] }))}
+                                                className="text-xs font-bold text-gray-600 hover:text-gray-800 flex items-center gap-1 bg-white border px-3 py-1 rounded-full shadow-sm"
+                                            >
+                                                <FaPlus size={10} /> Agregar URL
+                                            </button>
+
+                                            <label className={`cursor-pointer text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 bg-white border border-purple-100 px-3 py-1 rounded-full shadow-sm ${uploading ? 'opacity-50' : ''}`}>
+                                                <FaUpload size={10} /> Subir Foto Extra
+                                                <input
+                                                    type="file"
+                                                    hidden
+                                                    accept="image/*"
+                                                    disabled={uploading}
+                                                    onChange={(e) => handleImageUpload(e, 'gallery')}
+                                                />
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -69,17 +69,8 @@ function App() {
               return (
                 <div key={prod.id || i}>
                   <ProductCard
-                    product={{ ...prod, imageUrl: prod.imageUrl }}
-                    onCardClick={(p) => setTortaSeleccionada({
-                      ...p,
-                      nombre: p.name,
-                      descripcion: p.description,
-                      imagen: p.imageUrl,
-                      precio: p.price
-                    })}
-                    ctaHref={`/formulario?tipo=${typeSingular}&producto=${encodeURIComponent(prod.name)}`}
-                    ctaLabel={typeSingular === "torta" ? "Personalizar" : "Encargar"}
-                    ctaColor={typeSingular === "torta" ? "purple" : "green"}
+                    product={prod}
+                    onCardClick={(p) => setTortaSeleccionada(p)}
                   />
                 </div>
               );

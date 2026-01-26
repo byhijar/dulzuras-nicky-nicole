@@ -1,5 +1,6 @@
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase/firebaseConfig";
 
 const COLLECTION_NAME = "products";
 const ORDERS_COLLECTION = "pedidos";
@@ -107,6 +108,26 @@ export const updateOrderStatus = async (orderId, newStatus) => {
         });
     } catch (error) {
         console.error("Error updating order status:", error);
+        throw error;
+    }
+};
+
+/**
+ * Upload a product image to Firebase Storage
+ * @param {File} file 
+ * @returns {Promise<string>} Download URL
+ */
+export const uploadProductImage = async (file) => {
+    try {
+        const timestamp = Date.now();
+        // Safe filename
+        const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+        const storageRef = ref(storage, `products/${fileName}`);
+
+        const snapshot = await uploadBytes(storageRef, file);
+        return await getDownloadURL(snapshot.ref);
+    } catch (error) {
+        console.error("Error uploading image:", error);
         throw error;
     }
 };
