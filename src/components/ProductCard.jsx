@@ -64,7 +64,12 @@ function ProductCard({
                     {imageUrl ? (
                         <img
                             src={imageUrl}
-                            // ... props
+                            alt={name}
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "/logo-nicky-transparent.png";
+                                e.target.className = "w-full h-full object-contain opacity-50 p-4";
+                            }}
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-500" // Added subtle zoom
                         />
                     ) : (

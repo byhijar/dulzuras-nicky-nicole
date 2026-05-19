@@ -25,6 +25,8 @@ function Header() {
     setMenuAbierto(false);
   }, [location]);
 
+  const isAdmin = user && ['dulzuras.nickynicole@gmail.com', 'byhijar@gmail.com'].includes(user.email);
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (catalogoRef.current && !catalogoRef.current.contains(event.target)) {
@@ -94,10 +96,17 @@ function Header() {
 
           {/* Botón de acceso Desktop */}
           {user ? (
-            <Link to="/perfil" className="flex items-center gap-2 bg-purple-200 px-4 py-2 rounded-full hover:bg-purple-300 transition text-purple-900 font-bold">
-              <FaUserCircle size={20} />
-              <span>Mi Cuenta</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link to="/admin" className="bg-pink-500 text-white px-4 py-2 rounded-full hover:bg-pink-600 transition font-bold shadow-sm">
+                  Panel Admin
+                </Link>
+              )}
+              <Link to="/perfil" className="flex items-center gap-2 bg-purple-200 px-4 py-2 rounded-full hover:bg-purple-300 transition text-purple-900 font-bold">
+                <FaUserCircle size={20} />
+                <span>Mi Cuenta</span>
+              </Link>
+            </div>
           ) : (
             <Link to="/login" className="bg-purple-600 text-white px-5 py-2 rounded-full hover:bg-purple-700 transition font-bold shadow-sm">
               Ingresar
@@ -111,9 +120,16 @@ function Header() {
 
           {/* Acceso rápido móvil */}
           {user ? (
-            <Link to="/perfil" className="text-purple-800">
-              <FaUserCircle size={24} />
-            </Link>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link to="/admin" className="text-pink-600 bg-pink-100 p-2 rounded-full">
+                  <FaUserCircle size={20} /> {/* Can change icon if needed, maybe FaToolbox */}
+                </Link>
+              )}
+              <Link to="/perfil" className="text-purple-800">
+                <FaUserCircle size={24} />
+              </Link>
+            </div>
           ) : null}
 
           <button onClick={() => setMenuAbierto(!menuAbierto)}>
@@ -133,7 +149,10 @@ function Header() {
           <Link to="/contacto">Contacto</Link>
           <hr className="mx-6 border-purple-100" />
           {user ? (
-            <Link to="/perfil" className="font-bold">Ir a Mi Perfil</Link>
+            <>
+              {isAdmin && <Link to="/admin" className="font-bold text-pink-600 bg-pink-50 py-2 mx-6 rounded-lg">Ir al Panel Admin</Link>}
+              <Link to="/perfil" className="font-bold">Ir a Mi Perfil</Link>
+            </>
           ) : (
             <Link to="/login" className="bg-purple-600 text-white mx-6 py-2 rounded-full font-bold">Ingresar / Registrarse</Link>
           )}
