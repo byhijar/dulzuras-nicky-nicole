@@ -39,7 +39,14 @@ function Footer() {
 
         <div className="flex items-center gap-2">
           <FaTiktok className="text-black" />
-          <span className="text-gray-500 italic">Próximamente en TikTok</span>
+          <a
+            href="https://www.tiktok.com/@dulzuras.nickynicole?lang=en"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline text-black font-semibold"
+          >
+            @dulzuras.nickynicole
+          </a>
         </div>
 
         <div className="flex items-center gap-2">
